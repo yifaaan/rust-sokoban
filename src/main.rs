@@ -2,7 +2,7 @@ use std::path;
 
 use ggez::{
     conf::{self, WindowMode},
-    event, GameResult,
+    event, Context, GameResult,
 };
 use specs::{prelude::*, storage, Component};
 
@@ -105,17 +105,38 @@ pub fn create_player(world: &mut World, position: Position) {
         .build();
 }
 
+/// Game State
 struct Game {
     world: World,
 }
 
 impl event::EventHandler for Game {
+    /// 每一帧调用该方法，用于更新游戏的状态
     fn update(&mut self, _ctx: &mut ggez::Context) -> GameResult {
         Ok(())
     }
-
+    /// 每一帧调用该方法，用于绘制游戏内容
     fn draw(&mut self, _ctx: &mut ggez::Context) -> GameResult {
+        {
+            // 在每一帧渲染更新所有实体的状态
+            let mut rs = RenderingSystem { context: _ctx };
+            rs.run_now(&self.world);
+        }
         Ok(())
+    }
+}
+
+pub struct RenderingSystem<'a> {
+    context: &'a mut Context,
+}
+
+impl<'a> System<'a> for RenderingSystem<'a> {
+    /// 渲染系统需要访问的数据
+    type SystemData = (ReadStorage<'a, Position>, ReadStorage<'a, Renderable>);
+
+    fn run(&mut self, data: Self::SystemData) {
+        let (positions, renderables) = data;
+        unimplemented!();
     }
 }
 
