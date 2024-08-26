@@ -5,6 +5,7 @@ use ggez::{
     event,
     glam::Vec2,
     graphics::{self, Canvas, DrawParam, Drawable, Image},
+    input::{self, keyboard::KeyCode},
     Context, GameResult,
 };
 use specs::{prelude::*, storage, world, Component};
@@ -53,6 +54,9 @@ pub fn register_components(world: &mut World) {
     world.register::<BoxSpot>();
 }
 
+pub fn register_resources(world: &mut World) {
+    world.insert(InputQueue::default());
+}
 /*
 * create entity
 */
@@ -160,6 +164,10 @@ struct Game {
 impl event::EventHandler for Game {
     /// 每一帧调用该方法，用于更新游戏的状态
     fn update(&mut self, _ctx: &mut ggez::Context) -> GameResult {
+        {
+            let mut is = InputSystem {};
+            is.run_now(&self.world);
+        }
         Ok(())
     }
     /// 每一帧调用该方法，用于绘制游戏内容
@@ -180,8 +188,17 @@ impl event::EventHandler for Game {
         _repeated: bool,
     ) -> GameResult {
         println!("Key pressed {:?}", input.keycode);
+
+        let mut input_queue = self.world.write_resource::<InputQueue>();
+        input_queue.keys_pressed.push(input.keycode.unwrap());
         Ok(())
     }
+}
+
+/// 作为world的全局共享资源
+#[derive(Default)]
+pub struct InputQueue {
+    pub keys_pressed: Vec<KeyCode>,
 }
 
 pub struct RenderingSystem<'a> {
@@ -239,9 +256,35 @@ pub fn initialize_level(world: &mut World) {
     // create_box(world, &Position { x: 2, y: 0, z: 0 });
 }
 
+pub struct InputSystem {}
+
+impl<'a> System<'a> for InputSystem {
+    type SystemData = (
+        Write<'a, InputQueue>,
+        WriteStorage<'a, Position>,
+        ReadStorage<'a, Player>,
+    );
+
+    fn run(&mut self, data: Self::SystemData) {
+        let (mut input_queue, mut positions, players) = data;
+        for (position, _player) in (&mut positions, &players).join() {
+            if let Some(key) = input_queue.keys_pressed.pop() {
+                match key {
+                    KeyCode::Up => position.y -= 1,
+                    KeyCode::Down => position.y += 1,
+                    KeyCode::Left => position.x -= 1,
+                    KeyCode::Right => position.x += 1,
+                    _ => (),
+                }
+            }
+        }
+    }
+}
+
 fn main() -> GameResult {
     let mut world = World::new();
     register_components(&mut world);
+    register_resources(&mut world);
     initialize_level(&mut world);
 
     let context_builder = ggez::ContextBuilder::new("rust_sokoban", "Liu Yifan")
