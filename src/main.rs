@@ -171,6 +171,17 @@ impl event::EventHandler for Game {
         }
         Ok(())
     }
+
+    /// 键盘按下事件
+    fn key_down_event(
+        &mut self,
+        ctx: &mut Context,
+        input: ggez::input::keyboard::KeyInput,
+        _repeated: bool,
+    ) -> GameResult {
+        println!("Key pressed {:?}", input.keycode);
+        Ok(())
+    }
 }
 
 pub struct RenderingSystem<'a> {
@@ -215,7 +226,7 @@ pub fn initialize_level(world: &mut World) {
     N N W W W W W W
     W W W . . . . W
     W . . . B . . W
-    W . . . . . . W 
+    W . . . . . . W
     W . P . . . . W
     W . . . . . . W
     W . . S . . . W
