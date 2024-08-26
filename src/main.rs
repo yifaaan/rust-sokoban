@@ -9,7 +9,8 @@ use ggez::{
 };
 use specs::{prelude::*, storage, world, Component};
 
-const TILE_WIDTH: f32 = 32.0;
+/// item 大小系数
+const TILE_WIDTH: f32 = 30.0;
 #[derive(Debug, Clone, Component)]
 #[storage(VecStorage)]
 pub struct Position {
@@ -55,10 +56,10 @@ pub fn register_components(world: &mut World) {
 /*
 * create entity
 */
-pub fn create_wall(world: &mut World, position: Position) {
+pub fn create_wall(world: &mut World, position: &Position) {
     world
         .create_entity()
-        .with(Position { z: 10, ..position })
+        .with(Position { z: 10, ..*position })
         .with(Renderable {
             path: "/images/wall.png".to_string(),
         })
@@ -66,20 +67,20 @@ pub fn create_wall(world: &mut World, position: Position) {
         .build();
 }
 
-pub fn create_floor(world: &mut World, position: Position) {
+pub fn create_floor(world: &mut World, position: &Position) {
     world
         .create_entity()
-        .with(Position { z: 5, ..position })
+        .with(Position { z: 5, ..*position })
         .with(Renderable {
             path: "/images/floor.png".to_string(),
         })
         .build();
 }
 
-pub fn create_box(world: &mut World, position: Position) {
+pub fn create_box(world: &mut World, position: &Position) {
     world
         .create_entity()
-        .with(Position { z: 10, ..position })
+        .with(Position { z: 10, ..*position })
         .with(Renderable {
             path: "/images/box.png".to_string(),
         })
@@ -87,10 +88,10 @@ pub fn create_box(world: &mut World, position: Position) {
         .build();
 }
 
-pub fn create_box_spot(world: &mut World, position: Position) {
+pub fn create_box_spot(world: &mut World, position: &Position) {
     world
         .create_entity()
-        .with(Position { z: 9, ..position })
+        .with(Position { z: 9, ..*position })
         .with(Renderable {
             path: "/images/box_spot.png".to_string(),
         })
@@ -98,15 +99,57 @@ pub fn create_box_spot(world: &mut World, position: Position) {
         .build();
 }
 
-pub fn create_player(world: &mut World, position: Position) {
+pub fn create_player(world: &mut World, position: &Position) {
     world
         .create_entity()
-        .with(Position { z: 10, ..position })
+        .with(Position { z: 10, ..*position })
         .with(Renderable {
             path: "/images/player.png".to_string(),
         })
         .with(Player {})
         .build();
+}
+
+pub fn load_map(world: &mut World, map_string: String) {
+    let rows: Vec<&str> = map_string
+        .trim()
+        .split('\n')
+        .map(|line| line.trim())
+        .collect();
+
+    for (y, row) in rows.iter().enumerate() {
+        // println!("{}", row);
+        let columns: Vec<&str> = row.split_whitespace().collect();
+        for (x, column) in columns.iter().enumerate() {
+            let position = Position {
+                x: x as u8,
+                y: y as u8,
+                z: 0,
+            };
+
+            match *column {
+                "." => create_floor(world, &position),
+                "W" => {
+                    create_floor(world, &position);
+                    create_wall(world, &position);
+                }
+                "P" => {
+                    create_floor(world, &position);
+                    create_player(world, &position);
+                }
+                "B" => {
+                    create_floor(world, &position);
+                    create_box(world, &position);
+                }
+                "S" => {
+                    create_floor(world, &position);
+                    create_box_spot(world, &position);
+                }
+                "N" => (),
+                c => panic!("unrecognized map item {}", c),
+            }
+        }
+    }
 }
 
 /// Game State
@@ -165,10 +208,24 @@ impl<'a> System<'a> for RenderingSystem<'a> {
     }
 }
 
+/// 初始化游戏关卡
 pub fn initialize_level(world: &mut World) {
-    create_player(world, Position { x: 0, y: 0, z: 0 });
-    create_wall(world, Position { x: 1, y: 0, z: 0 });
-    create_box(world, Position { x: 2, y: 0, z: 0 });
+    // W:Wall  P: Player  B: Box  S: Spot  N: None
+    const MAP: &str = "
+    N N W W W W W W
+    W W W . . . . W
+    W . . . B . . W
+    W . . . . . . W 
+    W . P . . . . W
+    W . . . . . . W
+    W . . S . . . W
+    W . . . . . . W
+    W W W W W W W W
+    ";
+    load_map(world, MAP.to_string());
+    // create_player(world, &Position { x: 0, y: 0, z: 0 });
+    // create_wall(world, &Position { x: 1, y: 0, z: 0 });
+    // create_box(world, &Position { x: 2, y: 0, z: 0 });
 }
 
 fn main() -> GameResult {
@@ -176,10 +233,12 @@ fn main() -> GameResult {
     register_components(&mut world);
     initialize_level(&mut world);
 
-    let context_builder = ggez::ContextBuilder::new("rust_sokoban", "lyf")
+    let context_builder = ggez::ContextBuilder::new("rust_sokoban", "Liu Yifan")
+        // 配置窗口的设置
         .window_setup(conf::WindowSetup::default().title("Rust Sokoban"))
+        // 缩放、无边框、全屏等
         .window_mode(WindowMode::default().dimensions(800.0, 600.0))
-        .add_resource_path(path::PathBuf::from("./resources"));
+        .add_resource_path("./resources");
 
     let (context, event_loop) = context_builder.build()?;
 
