@@ -1,3 +1,9 @@
+use std::path;
+
+use ggez::{
+    conf::{self, WindowMode},
+    event, GameResult,
+};
 use specs::{prelude::*, storage, Component};
 
 #[derive(Debug, Clone, Component)]
@@ -29,10 +35,6 @@ pub struct Box {}
 #[derive(Component)]
 #[storage(VecStorage)]
 pub struct BoxSpot {}
-
-fn main() {
-    println!("Hello, world!");
-}
 
 pub fn register_components(world: &mut World) {
     // The `World` is our
@@ -101,4 +103,33 @@ pub fn create_player(world: &mut World, position: Position) {
         })
         .with(Player {})
         .build();
+}
+
+struct Game {
+    world: World,
+}
+
+impl event::EventHandler for Game {
+    fn update(&mut self, _ctx: &mut ggez::Context) -> GameResult {
+        Ok(())
+    }
+
+    fn draw(&mut self, _ctx: &mut ggez::Context) -> GameResult {
+        Ok(())
+    }
+}
+
+fn main() -> GameResult {
+    let mut world = World::new();
+    register_components(&mut world);
+
+    let context_builder = ggez::ContextBuilder::new("rust_sokoban", "lyf")
+        .window_setup(conf::WindowSetup::default().title("Rust Sokoban"))
+        .window_mode(WindowMode::default().dimensions(800.0, 600.0))
+        .add_resource_path(path::PathBuf::from("./resources"));
+
+    let (context, event_loop) = context_builder.build()?;
+
+    let game = Game { world };
+    event::run(context, event_loop, game);
 }
