@@ -1,177 +1,20 @@
-use std::{collections::HashMap, path};
-
+use components::register_components;
 use ggez::{
     conf::{self, WindowMode},
-    event,
-    glam::Vec2,
-    graphics::{self, Canvas, DrawParam, Drawable, Image},
-    input::{self, keyboard::KeyCode},
-    Context, GameResult,
+    event, Context, GameResult,
 };
-use specs::{prelude::*, storage, world, Component};
+use map::load_map;
+use resources::{register_resources, InputQueue};
+use specs::prelude::*;
+use systems::{InputSystem, RenderingSystem};
 
+mod components;
+mod constants;
+mod entities;
+mod map;
+mod resources;
+mod systems;
 /// item 大小系数
-const TILE_WIDTH: f32 = 32.0;
-
-const MAP_HEIGHT: u8 = 9;
-const MAP_WIDTH: u8 = 8;
-
-#[derive(Debug, Clone, Component)]
-#[storage(VecStorage)]
-pub struct Position {
-    x: u8,
-    y: u8,
-    z: u8,
-}
-
-#[derive(Component)]
-#[storage(VecStorage)]
-pub struct Renderable {
-    path: String,
-}
-
-#[derive(Component)]
-#[storage(VecStorage)]
-pub struct Wall {}
-
-#[derive(Component)]
-#[storage(VecStorage)]
-pub struct Player {}
-
-#[derive(Component)]
-#[storage(VecStorage)]
-pub struct Box {}
-
-#[derive(Component)]
-#[storage(VecStorage)]
-pub struct BoxSpot {}
-
-#[derive(Component, Default)]
-#[storage(NullStorage)]
-pub struct Movable;
-
-#[derive(Component, Default)]
-#[storage(NullStorage)]
-pub struct Immovable;
-
-pub fn register_components(world: &mut World) {
-    // The `World` is our
-    // container for components
-    // and other resources.
-    world.register::<Position>();
-    world.register::<Renderable>();
-    world.register::<Wall>();
-    world.register::<Player>();
-    world.register::<Box>();
-    world.register::<BoxSpot>();
-    world.register::<Movable>();
-    world.register::<Immovable>();
-}
-
-pub fn register_resources(world: &mut World) {
-    world.insert(InputQueue::default());
-}
-/*
-* create entity
-*/
-pub fn create_wall(world: &mut World, position: &Position) {
-    world
-        .create_entity()
-        .with(Position { z: 10, ..*position })
-        .with(Renderable {
-            path: "/images/wall.png".to_string(),
-        })
-        .with(Immovable {})
-        .with(Wall {})
-        .build();
-}
-
-pub fn create_floor(world: &mut World, position: &Position) {
-    world
-        .create_entity()
-        .with(Position { z: 5, ..*position })
-        .with(Renderable {
-            path: "/images/floor.png".to_string(),
-        })
-        .build();
-}
-
-pub fn create_box(world: &mut World, position: &Position) {
-    world
-        .create_entity()
-        .with(Position { z: 10, ..*position })
-        .with(Renderable {
-            path: "/images/box.png".to_string(),
-        })
-        .with(Movable {})
-        .with(Box {})
-        .build();
-}
-
-pub fn create_box_spot(world: &mut World, position: &Position) {
-    world
-        .create_entity()
-        .with(Position { z: 9, ..*position })
-        .with(Renderable {
-            path: "/images/box_spot.png".to_string(),
-        })
-        .with(BoxSpot {})
-        .build();
-}
-
-pub fn create_player(world: &mut World, position: &Position) {
-    world
-        .create_entity()
-        .with(Position { z: 10, ..*position })
-        .with(Renderable {
-            path: "/images/player.png".to_string(),
-        })
-        .with(Movable {})
-        .with(Player {})
-        .build();
-}
-
-pub fn load_map(world: &mut World, map_string: String) {
-    let rows: Vec<&str> = map_string
-        .trim()
-        .split('\n')
-        .map(|line| line.trim())
-        .collect();
-
-    for (y, row) in rows.iter().enumerate() {
-        // println!("{}", row);
-        let columns: Vec<&str> = row.split_whitespace().collect();
-        for (x, column) in columns.iter().enumerate() {
-            let position = Position {
-                x: x as u8,
-                y: y as u8,
-                z: 0,
-            };
-
-            match *column {
-                "." => create_floor(world, &position),
-                "W" => {
-                    create_floor(world, &position);
-                    create_wall(world, &position);
-                }
-                "P" => {
-                    create_floor(world, &position);
-                    create_player(world, &position);
-                }
-                "B" => {
-                    create_floor(world, &position);
-                    create_box(world, &position);
-                }
-                "S" => {
-                    create_floor(world, &position);
-                    create_box_spot(world, &position);
-                }
-                "N" => (),
-                c => panic!("unrecognized map item {}", c),
-            }
-        }
-    }
-}
 
 /// Game State
 struct Game {
@@ -212,47 +55,6 @@ impl event::EventHandler for Game {
     }
 }
 
-/// 作为world的全局共享资源
-#[derive(Default)]
-pub struct InputQueue {
-    pub keys_pressed: Vec<KeyCode>,
-}
-
-pub struct RenderingSystem<'a> {
-    context: &'a mut Context,
-}
-
-impl<'a> System<'a> for RenderingSystem<'a> {
-    /// 渲染系统需要访问的数据
-    type SystemData = (ReadStorage<'a, Position>, ReadStorage<'a, Renderable>);
-
-    fn run(&mut self, data: Self::SystemData) {
-        let (positions, renderables) = data;
-        // 清空背景
-        let mut canvas =
-            Canvas::from_frame(self.context, graphics::Color::new(0.95, 0.95, 0.95, 1.0));
-
-        let mut rendering_data = (&positions, &renderables).join().collect::<Vec<_>>();
-        rendering_data.sort_by_key(|&k| k.0.z);
-
-        // Iterate through all pairs of positions & renderables, load the image
-        // and draw it at the specified position.
-        for (position, renderable) in rendering_data.iter() {
-            // load image
-            let image =
-                Image::from_path(self.context, renderable.path.clone()).expect("expect image");
-            let x = position.x as f32 * TILE_WIDTH;
-            let y = position.y as f32 * TILE_WIDTH;
-
-            // draw
-            let draw_params = DrawParam::new().dest(Vec2::new(x, y));
-            canvas.draw(&image, draw_params);
-        }
-        // present the context on the screen
-        canvas.finish(self.context).expect("expected to present");
-    }
-}
-
 /// 初始化游戏关卡
 pub fn initialize_level(world: &mut World) {
     // W:Wall  P: Player  B: Box  S: Spot  N: None
@@ -271,89 +73,6 @@ pub fn initialize_level(world: &mut World) {
     // create_player(world, &Position { x: 0, y: 0, z: 0 });
     // create_wall(world, &Position { x: 1, y: 0, z: 0 });
     // create_box(world, &Position { x: 2, y: 0, z: 0 });
-}
-
-pub struct InputSystem {}
-
-impl<'a> System<'a> for InputSystem {
-    type SystemData = (
-        Write<'a, InputQueue>,
-        Entities<'a>,
-        WriteStorage<'a, Position>,
-        ReadStorage<'a, Player>,
-        ReadStorage<'a, Movable>,
-        ReadStorage<'a, Immovable>,
-    );
-
-    fn run(&mut self, data: Self::SystemData) {
-        let (mut input_queue, entities, mut positions, players, movables, immovables) = data;
-
-        let mut to_move = Vec::new();
-        for (position, _player) in (&positions, &players).join() {
-            if let Some(key) = input_queue.keys_pressed.pop() {
-                // (x, y) --> id
-                let mov = (&entities, &movables, &positions)
-                    .join()
-                    .map(|t| ((t.2.x, t.2.y), t.0.id()))
-                    .collect::<HashMap<_, _>>();
-                let immov = (&entities, &immovables, &positions)
-                    .join()
-                    .map(|t| ((t.2.x, t.2.y), t.0.id()))
-                    .collect::<HashMap<_, _>>();
-
-                // 在该方向从起点迭代到地图的边界
-                let (start, end, is_x) = match key {
-                    KeyCode::Up => (position.y, 0, false),
-                    KeyCode::Down => (position.y, MAP_HEIGHT, false),
-                    KeyCode::Left => (position.x, 0, true),
-                    KeyCode::Right => (position.x, MAP_WIDTH, true),
-                    _ => continue,
-                };
-
-                let range = if start < end {
-                    (start..=end).collect::<Vec<_>>()
-                } else {
-                    (end..=start).rev().collect::<Vec<_>>()
-                };
-
-                // 遍历路径上的每一个点
-                for x_or_y in range {
-                    let pos = if is_x {
-                        (x_or_y, position.y)
-                    } else {
-                        (position.x, x_or_y)
-                    };
-
-                    match mov.get(&pos) {
-                        // entity
-                        Some(id) => to_move.push((key, id.clone())),
-                        None => {
-                            // immovable
-                            match immov.get(&pos) {
-                                // 如果路径上有一个Immovable，则停止移动所有
-                                Some(_id) => to_move.clear(),
-                                // floor
-                                None => break,
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        // 移动所有可移动物
-        for (key, id) in to_move {
-            let position = positions.get_mut(entities.entity(id));
-            if let Some(p) = position {
-                match key {
-                    KeyCode::Up => p.y -= 1,
-                    KeyCode::Down => p.y += 1,
-                    KeyCode::Left => p.x -= 1,
-                    KeyCode::Right => p.x += 1,
-                    _ => (),
-                }
-            }
-        }
-    }
 }
 
 fn main() -> GameResult {
