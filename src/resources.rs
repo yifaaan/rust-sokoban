@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::{fmt::Display, time::Duration};
 
 use ggez::input::keyboard::KeyCode;
 use specs::World;
@@ -39,7 +39,12 @@ impl Display for GamePlayState {
     }
 }
 
+#[derive(Default)]
+pub struct Time {
+    pub delta: Duration,
+}
 pub fn register_resources(world: &mut World) {
     world.insert(InputQueue::default());
     world.insert(GamePlay::default());
+    world.insert(Time::default());
 }

@@ -1,10 +1,10 @@
 use components::register_components;
 use ggez::{
     conf::{self, WindowMode},
-    event, Context, GameResult,
+    event, timer, Context, GameResult,
 };
 use map::load_map;
-use resources::{register_resources, InputQueue};
+use resources::{register_resources, InputQueue, Time};
 use specs::prelude::*;
 use systems::{GamePlayStateSystem, InputSystem, RenderingSystem};
 
@@ -32,6 +32,12 @@ impl event::EventHandler for Game {
         {
             let mut gss = GamePlayStateSystem {};
             gss.run_now(&self.world);
+        }
+
+        {
+            let mut time = self.world.write_resource::<Time>();
+            // 加上每一帧的时间间隔
+            time.delta += _ctx.time.delta();
         }
         Ok(())
     }
