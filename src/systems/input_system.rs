@@ -11,6 +11,7 @@ pub struct InputSystem {}
 impl<'a> System<'a> for InputSystem {
     type SystemData = (
         Write<'a, InputQueue>,
+        Write<'a, GamePlay>,
         Entities<'a>,
         WriteStorage<'a, Position>,
         ReadStorage<'a, Player>,
@@ -19,7 +20,15 @@ impl<'a> System<'a> for InputSystem {
     );
 
     fn run(&mut self, data: Self::SystemData) {
-        let (mut input_queue, entities, mut positions, players, movables, immovables) = data;
+        let (
+            mut input_queue,
+            mut game_play,
+            entities,
+            mut positions,
+            players,
+            movables,
+            immovables,
+        ) = data;
 
         let mut to_move = Vec::new();
         for (position, _player) in (&positions, &players).join() {
@@ -72,6 +81,10 @@ impl<'a> System<'a> for InputSystem {
                     }
                 }
             }
+        }
+        // increase the number of moves
+        if to_move.len() > 0 {
+            game_play.move_count += 1;
         }
         // 移动所有可移动物
         for (key, id) in to_move {
