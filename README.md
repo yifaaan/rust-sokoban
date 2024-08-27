@@ -7,3 +7,5 @@
 - Floor entity: Position, Renderable
 - Box entity: Position, Renderable, Movable
 - Box spot entity: Position, Renderable
+
+![Game](./resources/images/game.png)
