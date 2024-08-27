@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use specs::{Component, NullStorage, VecStorage, World, WorldExt};
 
 #[derive(Debug, Clone, Component)]
@@ -24,11 +26,15 @@ pub struct Player {}
 
 #[derive(Component)]
 #[storage(VecStorage)]
-pub struct Box {}
+pub struct Box {
+    pub color: BoxColor,
+}
 
 #[derive(Component)]
 #[storage(VecStorage)]
-pub struct BoxSpot {}
+pub struct BoxSpot {
+    pub color: BoxColor,
+}
 
 #[derive(Component, Default)]
 #[storage(NullStorage)]
@@ -37,6 +43,25 @@ pub struct Movable;
 #[derive(Component, Default)]
 #[storage(NullStorage)]
 pub struct Immovable;
+
+#[derive(PartialEq)]
+pub enum BoxColor {
+    Red,
+    Blue,
+}
+
+impl Display for BoxColor {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                BoxColor::Red => "red",
+                BoxColor::Blue => "blue",
+            }
+        )
+    }
+}
 
 pub fn register_components(world: &mut World) {
     // The `World` is our

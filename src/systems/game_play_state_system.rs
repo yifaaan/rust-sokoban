@@ -26,8 +26,12 @@ impl<'a> System<'a> for GamePlayStateSystem {
             .collect::<HashMap<_, _>>();
         //
         for (_box_spot, position) in (&boxspots, &positions).join() {
-            // 只要还存在没有归位的box，就return，游戏继续
-            if !boxes_by_position.contains_key(&(position.x, position.y)) {
+            if let Some(the_box) = boxes_by_position.get(&(position.x, position.y)) {
+                // 只要还存在没有归位的box，就return，游戏继续（颜色对应)
+                if the_box.color != _box_spot.color {
+                    return;
+                }
+            } else {
                 gameplay.state = GamePlayState::Playing;
                 return;
             }
