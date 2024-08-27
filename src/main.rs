@@ -6,7 +6,7 @@ use ggez::{
 use map::load_map;
 use resources::{register_resources, InputQueue};
 use specs::prelude::*;
-use systems::{InputSystem, RenderingSystem};
+use systems::{GamePlayStateSystem, InputSystem, RenderingSystem};
 
 mod components;
 mod constants;
@@ -27,6 +27,11 @@ impl event::EventHandler for Game {
         {
             let mut is = InputSystem {};
             is.run_now(&self.world);
+        }
+        // Run gameplay state system
+        {
+            let mut gss = GamePlayStateSystem {};
+            gss.run_now(&self.world);
         }
         Ok(())
     }
